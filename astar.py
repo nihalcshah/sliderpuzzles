@@ -1,13 +1,27 @@
 import sys; args = sys.argv[1:]
-f = open(args[0], "r").read().splitlines()
-# f = open("Eckel55G.txt", "r").read().splitlines()
+# f = open(args[0], "r").read().splitlines()
+f = open("Eckel55G.txt", "r").read().splitlines()
 #Nihal Shah, Student, pd. 6
 import time 
 x = time.perf_counter()
 
 
-def manhattantable(g):
+def manhattantable():
     d = {}
+    for ind,val in enumerate(goal):
+        larr = []
+        for i in range(16):
+
+            originalrow = ind//length
+            currentrow = i//length
+            originalcol = ind%width
+            currentcol = i%width
+
+            rowdiff = abs(originalrow-currentrow)
+            columndiff = abs(originalcol-currentcol)
+            larr.append(rowdiff + columndiff)
+        d[val] = larr
+    return d
     
 
 
@@ -62,30 +76,35 @@ def countManhattan(start, goal):
 
 
 #Function to find the neighbors of a given puzzle, returns a list of tuples with the neighbors 
-def find_neighbors(s):
+def find_neighbors(s, d):
     location = s.index("_")
     neighbors = []
     if location+width<len(s):
         k = [*s]
         k[location], k[location+width] = k[location+width], k[location]
-        neighbors.append((0,"".join(k),s, "D",0))
+        md = d[k[location]][location]-d[k[location]][location+width]
+        neighbors.append((0,"".join(k),s, "D",0,md))
     if (location)%width!=width-1:
         k = [*s]
         k[location], k[location+1] = k[location+1], k[location]
-        neighbors.append((0,"".join(k), s, "R",0))
+        # print(d[k[location]][location+1])
+        md = d[k[location]][location]-d[k[location]][location+1]
+        neighbors.append((0,"".join(k), s, "R",0, md))
     if location-width>=0:
         k = [*s]
         k[location], k[location-width] = k[location-width], k[location]
-        neighbors.append((0,"".join(k),s, "U",0))
+        md = d[k[location]][location]-d[k[location]][location-width]
+        neighbors.append((0,"".join(k),s, "U",0, md))
     if location%width!=0:
         k = [*s]
         k[location], k[location-1] = k[location-1], k[location]
-        neighbors.append((0,"".join(k),s,"L",0))
+        md = d[k[location]][location]-d[k[location]][location-1]
+        neighbors.append((0,"".join(k),s,"L",0,md))
     return neighbors
 
 #Function implements the AStar algorithm, finding the shortest path between two nodes using estimates.
 
-def AStar(start, goal):
+def AStar(start, goal, d):
     if start==goal:
         return "G"
     if not isSolvable(start, goal):
@@ -114,9 +133,6 @@ def AStar(start, goal):
             count+=2
             ptr = 0
             pzl = openset[count][ptr]
-        # print(pzl)
-        if(pzl[1]== "ABCDE_FHIKGLMJNO"):
-            purple = 0
         if pzl[1] in closedset:
             ptr+=1
             continue
@@ -124,22 +140,21 @@ def AStar(start, goal):
             closedset[pzl[1]] = pzl 
             # print(pzl[1] in closedset)
         l = pzl[4]
-        for i in find_neighbors(pzl[1]):
-            if i[1] == goal:
-                closedset[i[1]] = i
-                return closedset, i
-                # m = i
-
-                # path = ""
-                # while m[2]!=None:
-                #     path = m[3]+path
-                #     m = closedset[m[2]]
-                # return path
-            if i[1] in closedset:
+        for tup in find_neighbors(pzl[1], d):
+            estimate, string, parent, movement, lev, mdchange = tup
+            if string == goal:
+                closedset[string] = (estimate, string, parent, movement, lev)
+                return closedset, (estimate, string, parent, movement, lev)
+            if string in closedset:
                 continue
-            t = countManhattan(i[1], goal)
-            f = l +1 + t
-            openset[f].append((f, i[1], i[2], i[3], l+1))
+            t = mdchange
+            # print(f"Manhattan: {countManhattan(string, goal)}")
+            # print(f"Table: {t}")
+            # if(pzl[0]):
+            #     f = pzl[0] +1 + t
+            # else:
+            f= count +1 +t
+            openset[f].append((f, string, parent, movement, l+1))
         ptr+=1
         # if(ptr==len(openset[count])):
         #     count = count+2
@@ -166,16 +181,22 @@ def calculatelength(puzzle):
 def solvePuzzles(arr):
     global goal
     goal = arr[0]
+    
     # goal = "ABCDEFGHIJKLMNO_"
     global length, width
     length,width = calculatelength(goal)
+    mdict = manhattantable()
+    tt = 0
     for i in range(len(arr)):
         start = arr[i]
         t = time.process_time()
-        path = AStar(start, goal)
+        path = AStar(start, goal, mdict)
         if len(path)>1:
             path = assemblepath(path[0],path[1])
         t = time.process_time()-t
+        tt+=t
+        if(tt>=60):
+            break
         print("{}: {} solved in {:.2f} secs => path {}".format(i+1, start, round(t, 2), path))
     print("Process Complete")
 solvePuzzles(f)
